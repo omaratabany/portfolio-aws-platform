@@ -23,8 +23,8 @@ def handler(event, context):
         key = f"events/{payload["timestamp"][:10]}/{payload['id']}.json"
         s3.put_object(
             Bucket=BUCKET,
-            key=key,
-            body=json.dumps(payload),
+            Key=key,
+            Body=json.dumps(payload),
             ContentType="aapplication/json"
         )
         return{
