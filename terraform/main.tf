@@ -24,3 +24,12 @@ module "iam" {
   bucket_arn  = module.storage.bucket_arn
 
 }
+
+module "lambda" {
+  source = "./modules/lambda"
+
+  project              = var.project
+  environment          = var.environment
+  bucket_id            = module.storage.bucket_id
+  lambda_exec_role_arn = module.iam.lambda_exec_role_arn
+}
