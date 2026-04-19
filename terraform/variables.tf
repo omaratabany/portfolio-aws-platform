@@ -3,11 +3,10 @@ variable "aws_region" {
   type        = string
   default     = "eu-central-1"
 }
-
 variable "project" {
   description = "project used in resource naming and tagging"
   type        = string
-  default     = "portfolio-platofrm"
+  default     = "portfolio-platform"
 }
 
 variable "environment" {
