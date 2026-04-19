@@ -3,7 +3,7 @@ output "bucket_id" {
   value       = aws_s3_bucket.data.id
 }
 
-output "bucket_arm" {
+output "bucket_arn" {
   description = "the ARN of the S3 data bucket"
   value       = aws_s3_bucket.data.arn
 }

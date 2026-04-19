@@ -15,3 +15,12 @@ module "storage" {
   environment = var.environment
   account_id  = data.aws_caller_identity.current.account_id
 }
+
+module "iam" {
+  source = "./modules/iam"
+
+  project     = var.project
+  environment = var.environment
+  bucket_arn  = module.storage.bucket_arn
+
+}
