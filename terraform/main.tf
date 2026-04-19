@@ -33,3 +33,13 @@ module "lambda" {
   bucket_id            = module.storage.bucket_id
   lambda_exec_role_arn = module.iam.lambda_exec_role_arn
 }
+module "apigateway" {
+  source = "./modules/apigateway"
+
+  project              = var.project
+  environment          = var.environment
+  lambda_function_name = module.lambda.function_name
+  lambda_invoke_arn    = module.lambda.invoke_arn
+  account_id           = data.aws_caller_identity.current.account_id
+  aws_region           = var.aws_region
+}
