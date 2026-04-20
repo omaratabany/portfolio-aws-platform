@@ -43,3 +43,11 @@ module "apigateway" {
   account_id           = data.aws_caller_identity.current.account_id
   aws_region           = var.aws_region
 }
+
+module "observability" {
+  source = "./modules/observability"
+
+  project              = var.project
+  environment          = var.environment
+  lambda_function_name = module.lambda.function_name
+}
