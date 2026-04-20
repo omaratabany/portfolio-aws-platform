@@ -1,0 +1,38 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "functions/**"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Lambda
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::637423316787:role/portfolio-platform-dev-github-actions
+          aws-region: eu-central-1
+
+      - name: Package Lambda function
+        run: |
+          cd functions
+          zip ingest.zip ingest.py
+
+      - name: Deploy Lambda function
+        run: |
+          aws lambda update-function-code \
+            --function-name portfolio-platform-dev-ingest \
+            --zip-file fileb://functions/ingest.zip
