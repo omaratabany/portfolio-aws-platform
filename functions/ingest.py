@@ -1,5 +1,5 @@
 import json
-import boto3
+import boto3 #aws's SDK
 import os
 import uuid
 from datetime import datetime, timezone
