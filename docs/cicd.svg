@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 220" width="820" height="220" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#555" />
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="1" dy="1" stdDeviation="2" flood-color="#00000018" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="820" height="220" fill="#f9fafb" rx="8" />
+
+  <!-- Title -->
+  <text x="410" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="#111">CI/CD Pipeline — Deployment Flow</text>
+
+  <!-- Step 1: git push -->
+  <rect x="30" y="65" width="120" height="60" rx="6" fill="#fff" stroke="#d1d5db" stroke-width="1.5" filter="url(#shadow)" />
+  <text x="90" y="91" text-anchor="middle" font-size="11" font-weight="600" fill="#374151">Developer</text>
+  <text x="90" y="108" text-anchor="middle" font-size="10" fill="#6b7280">git push main</text>
+
+  <!-- Arrow 1 -->
+  <line x1="150" y1="95" x2="198" y2="95" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead)" />
+  <text x="174" y="88" text-anchor="middle" font-size="9" fill="#6b7280">push</text>
+
+  <!-- Step 2: GitHub Actions -->
+  <rect x="200" y="65" width="130" height="60" rx="6" fill="#f0f9ff" stroke="#38bdf8" stroke-width="1.5" filter="url(#shadow)" />
+  <text x="265" y="91" text-anchor="middle" font-size="11" font-weight="600" fill="#0c4a6e">GitHub Actions</text>
+  <text x="265" y="108" text-anchor="middle" font-size="10" fill="#0369a1">ubuntu-latest</text>
+
+  <!-- Arrow 2 -->
+  <line x1="330" y1="95" x2="378" y2="95" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead)" />
+  <text x="354" y="88" text-anchor="middle" font-size="9" fill="#6b7280">request token</text>
+
+  <!-- Step 3: OIDC -->
+  <rect x="380" y="65" width="130" height="60" rx="6" fill="#fdf4ff" stroke="#c084fc" stroke-width="1.5" filter="url(#shadow)" />
+  <text x="445" y="87" text-anchor="middle" font-size="11" font-weight="600" fill="#581c87">OIDC Federation</text>
+  <text x="445" y="103" text-anchor="middle" font-size="10" fill="#6b21a8">AWS STS</text>
+  <text x="445" y="118" text-anchor="middle" font-size="10" fill="#6b21a8">assume-role</text>
+
+  <!-- Arrow 3 -->
+  <line x1="510" y1="95" x2="558" y2="95" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead)" />
+  <text x="534" y="88" text-anchor="middle" font-size="9" fill="#6b7280">credentials</text>
+
+  <!-- Step 4: Deploy Lambda -->
+  <rect x="560" y="65" width="130" height="60" rx="6" fill="#fff7ed" stroke="#fb923c" stroke-width="1.5" filter="url(#shadow)" />
+  <text x="625" y="91" text-anchor="middle" font-size="11" font-weight="600" fill="#9a3412">Lambda Deploy</text>
+  <text x="625" y="108" text-anchor="middle" font-size="10" fill="#c2410c">zip + update-function-code</text>
+
+  <!-- Step 5: Done -->
+  <rect x="730" y="65" width="60" height="60" rx="6" fill="#f0fdf4" stroke="#4ade80" stroke-width="1.5" filter="url(#shadow)" />
+  <text x="760" y="91" text-anchor="middle" font-size="11" font-weight="600" fill="#14532d">Live</text>
+  <text x="760" y="108" text-anchor="middle" font-size="10" fill="#15803d">deployed</text>
+
+  <!-- Arrow 4 -->
+  <line x1="690" y1="95" x2="728" y2="95" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead)" />
+
+  <!-- Path label -->
+  <text x="410" y="155" text-anchor="middle" font-size="10" fill="#9ca3af">Trigger: push to main when functions/** changes</text>
+
+  <!-- Security note -->
+  <rect x="200" y="165" width="420" height="38" rx="5" fill="#fdf4ff" stroke="#e9d5ff" stroke-width="1" />
+  <text x="410" y="181" text-anchor="middle" font-size="10" font-weight="600" fill="#581c87">No static AWS credentials stored in GitHub</text>
+  <text x="410" y="196" text-anchor="middle" font-size="10" fill="#7c3aed">Short-lived tokens via OIDC — role trust policy scoped to this repository and branch</text>
+</svg>
