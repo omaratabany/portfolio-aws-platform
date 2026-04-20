@@ -29,3 +29,14 @@ resource "aws_lambda_permission" "apigw" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.ingest.execution_arn}/*/*"
 }
+#rate limit to avoid spamming
+resource "aws_apigatewayv2_stage" "default" {
+  api_id      = aws_apigatewayv2_api.ingest.id
+  name        = "$default"
+  auto_deploy = true
+
+  default_route_settings {
+    throttling_rate_limit  = 10
+    throttling_burst_limit = 20
+  }
+}
