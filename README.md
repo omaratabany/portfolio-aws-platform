@@ -78,7 +78,7 @@ only when status actually changes.
 | **SNS** | `status-alerts` topic, email subscription. Requires confirming the email AWS sends after `terraform apply` — subscriptions stay `PendingConfirmation` until then. |
 | **API Gateway v2 + Lambda: api** | Public read-only `GET /status` and `GET /history/{target}` — a separate HTTP API from the ingest pipeline's, on purpose: different concern, different audience. |
 | **IAM** | Two separate execution roles — checker (DynamoDB write + SNS publish) and api (DynamoDB read only) — not one shared role, so a bug in either function can't act outside its own job. |
-| **`site/index.html`** | Self-contained static status page. Fill in `API_BASE` at the top of its `<script>` block with the `status_api_endpoint` Terraform output, then host it anywhere static (S3, Cloudflare Pages, or as a page on an existing site). |
+| **S3 static site (`modules/site`)** | Public bucket, static website hosting enabled. `terraform apply` bakes the real API endpoint into `site/index.html` and uploads it directly — no manual edit-and-redeploy step. URL is the `status_page_url` output. |
 | **AWS Budgets** | Account-wide zero-spend budget (`$0.01` actual / `$1` forecasted threshold) — applied independently of everything else above, so it catches a mistake anywhere in the account, not just in this project. |
 
 **Deployment note:** unlike the ingest Lambda, the status monitor's

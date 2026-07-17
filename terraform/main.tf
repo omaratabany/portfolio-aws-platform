@@ -127,3 +127,12 @@ module "apigateway_monitor" {
   lambda_function_name = module.lambda_api.function_name
   lambda_invoke_arn    = module.lambda_api.invoke_arn
 }
+
+module "site" {
+  source = "./modules/site"
+
+  project     = var.project
+  environment = var.environment
+  account_id  = data.aws_caller_identity.current.account_id
+  api_base    = module.apigateway_monitor.api_endpoint
+}

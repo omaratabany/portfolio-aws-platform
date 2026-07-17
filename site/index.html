@@ -60,9 +60,9 @@
 </main>
 
 <script>
-  // Fill in after `terraform apply` — the endpoint is printed as the
-  // `status_api_endpoint` output. Example:
-  // const API_BASE = "https://abcd1234.execute-api.eu-central-1.amazonaws.com";
+  // Stays empty in source control on purpose. terraform/modules/site
+  // substitutes this exact string at `apply` time to bake in the real
+  // API endpoint before uploading to S3 — see modules/site/main.tf.
   const API_BASE = "";
 
   const fmtTime = (iso) => new Date(iso).toLocaleString();

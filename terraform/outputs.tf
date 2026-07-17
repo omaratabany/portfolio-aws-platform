@@ -32,3 +32,8 @@ output "status_alerts_topic_arn" {
   description = "ARN of the SNS topic for status-change alerts"
   value       = module.sns_alerts.topic_arn
 }
+
+output "status_page_url" {
+  description = "Public URL of the status page"
+  value       = module.site.website_endpoint
+}

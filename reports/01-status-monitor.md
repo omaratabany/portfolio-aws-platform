@@ -206,3 +206,32 @@ mistake before it becomes a real charge.
 **Principle.** Cost controls belong at the account level, not bolted onto
 individual projects — a project-scoped safeguard only catches problems
 inside that project.
+
+---
+
+## ADR-9: S3 static website hosting, not S3 + CloudFront
+
+**Context.** The status page needs to actually be reachable at a URL.
+
+**Decision.** Plain S3 static website hosting (`modules/site`) — the page
+is baked into the bucket via `aws_s3_object`, with the real API endpoint
+substituted in at `terraform apply` time so there's no separate
+edit-and-redeploy step.
+
+**Alternatives considered.** S3 + CloudFront would add HTTPS (CloudFront's
+default `*.cloudfront.net` domain gets it automatically, no custom domain
+required) and is also free-tier eligible at this traffic level. It was
+deferred, not rejected on cost — it's simply another resource, another
+piece of cache-invalidation behavior, and another thing to reason about
+for a Phase 1 status page that doesn't yet need it. Plain HTTP is an
+honest limitation to carry forward, not a hidden one.
+
+**Consequences.** The page loads over HTTP; the API calls it makes are
+HTTPS, which is the safe direction (an HTTP page calling an HTTPS API
+doesn't trigger mixed-content blocking — the reverse would). Worth
+upgrading to CloudFront if this page ever needs a custom domain or HTTPS
+specifically, not before.
+
+**Principle.** Defer complexity until the requirement that justifies it
+actually shows up — "we might want HTTPS/a custom domain later" isn't
+that requirement yet on its own.
