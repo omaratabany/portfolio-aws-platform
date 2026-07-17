@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Status</title>
+<style>
+  :root {
+    --bg: #F4F6F8; --surface: #fff; --ink: #121820; --ink-dim: #4B5765;
+    --line: #D8DEE4; --up: #1E8E5A; --down: #C0392B; --accent: #C6710C;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0E141B; --surface: #161E27; --ink: #E7ECF1; --ink-dim: #9AA7B4;
+      --line: #263140; --up: #3FBE84; --down: #E5645A; --accent: #F0A94E;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    padding: 48px 20px;
+  }
+  main { max-width: 640px; margin: 0 auto; }
+  h1 {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 1.4rem; margin: 0 0 8px;
+  }
+  .sub { color: var(--ink-dim); margin: 0 0 32px; font-size: 0.95rem; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; padding: 18px 20px; margin-bottom: 14px;
+  }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .target-name { font-weight: 600; }
+  .pill {
+    font-family: ui-monospace, monospace; font-size: 12px; padding: 3px 10px;
+    border-radius: 999px; font-weight: 600; letter-spacing: 0.02em;
+  }
+  .pill.up { background: color-mix(in srgb, var(--up) 18%, transparent); color: var(--up); }
+  .pill.down { background: color-mix(in srgb, var(--down) 18%, transparent); color: var(--down); }
+  .meta {
+    display: flex; gap: 18px; margin-top: 10px; font-size: 13px;
+    color: var(--ink-dim); font-family: ui-monospace, monospace;
+  }
+  .history { display: flex; gap: 3px; margin-top: 14px; height: 24px; align-items: flex-end; }
+  .history .bar { flex: 1; border-radius: 2px; min-height: 4px; }
+  .history .bar.up { background: var(--up); }
+  .history .bar.down { background: var(--down); }
+  .empty, .error { color: var(--ink-dim); font-size: 0.95rem; }
+  footer { margin-top: 32px; font-size: 12px; color: var(--ink-dim); font-family: ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Status</h1>
+  <p class="sub">Checked every 5 minutes.</p>
+  <div id="targets"><p class="empty">Loading…</p></div>
+  <footer>Serverless status monitor — portfolio-aws-platform</footer>
+</main>
+
+<script>
+  // Fill in after `terraform apply` — the endpoint is printed as the
+  // `status_api_endpoint` output. Example:
+  // const API_BASE = "https://abcd1234.execute-api.eu-central-1.amazonaws.com";
+  const API_BASE = "";
+
+  const fmtTime = (iso) => new Date(iso).toLocaleString();
+  const timeAgo = (iso) => {
+    const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    return `${Math.floor(s / 3600)}h ago`;
+  };
+
+  async function render() {
+    const el = document.getElementById("targets");
+    if (!API_BASE) {
+      el.innerHTML = '<p class="error">API_BASE isn\'t configured yet — fill in the status_api_endpoint Terraform output at the top of this file\'s &lt;script&gt; block.</p>';
+      return;
+    }
+    try {
+      const statuses = await fetch(`${API_BASE}/status`).then((r) => r.json());
+      if (!statuses.length) {
+        el.innerHTML = '<p class="empty">No checks recorded yet — the checker runs every 5 minutes, so the first row can take a few minutes to appear.</p>';
+        return;
+      }
+      el.innerHTML = "";
+      for (const s of statuses) {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="card-head">
+            <span class="target-name">${s.target}</span>
+            <span class="pill ${s.is_up ? "up" : "down"}">${s.is_up ? "UP" : "DOWN"}</span>
+          </div>
+          <div class="meta">
+            <span>${s.latency_ms}ms</span>
+            <span>HTTP ${s.status_code}</span>
+            <span>checked ${timeAgo(s.checked_at)} · ${fmtTime(s.checked_at)}</span>
+          </div>
+          <div class="history" id="history-${s.target}"></div>
+        `;
+        el.appendChild(card);
+
+        fetch(`${API_BASE}/history/${encodeURIComponent(s.target)}`)
+          .then((r) => r.json())
+          .then((history) => {
+            const bar = document.getElementById(`history-${s.target}`);
+            if (!bar) return;
+            [...history].reverse().forEach((h) => {
+              const div = document.createElement("div");
+              div.className = `bar ${h.is_up ? "up" : "down"}`;
+              div.title = `${fmtTime(h.checked_at)} — ${h.is_up ? "up" : "down"} (${h.latency_ms}ms)`;
+              bar.appendChild(div);
+            });
+          });
+      }
+    } catch (e) {
+      el.innerHTML = `<p class="error">Couldn't reach the status API: ${e.message}</p>`;
+    }
+  }
+
+  render();
+  setInterval(render, 60000);
+</script>
+</body>
+</html>

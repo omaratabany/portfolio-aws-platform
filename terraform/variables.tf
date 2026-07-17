@@ -20,3 +20,23 @@ variable "environment" {
   }
 }
 
+variable "alert_email" {
+  description = "Email address that receives status-change and budget alerts"
+  type        = string
+  default     = "omar@atabany.com"
+}
+
+variable "monitor_targets" {
+  description = "Sites the status monitor checks on a schedule"
+  type = list(object({
+    name = string
+    url  = string
+  }))
+  default = [
+    {
+      name = "atabany.net"
+      url  = "https://atabany.net"
+    }
+  ]
+}
+
