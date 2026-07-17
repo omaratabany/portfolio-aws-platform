@@ -26,13 +26,27 @@ jobs:
           role-to-assume: arn:aws:iam::637423316787:role/portfolio-platform-dev-github-actions
           aws-region: eu-central-1
 
-      - name: Package Lambda function
+      - name: Package Lambda functions
         run: |
           cd functions
           zip ingest.zip ingest.py
+          zip checker.zip checker.py
+          zip api.zip api.py
 
-      - name: Deploy Lambda function
+      - name: Deploy ingest function
         run: |
           aws lambda update-function-code \
             --function-name portfolio-platform-dev-ingest \
             --zip-file fileb://functions/ingest.zip
+
+      - name: Deploy status-checker function
+        run: |
+          aws lambda update-function-code \
+            --function-name portfolio-platform-dev-status-checker \
+            --zip-file fileb://functions/checker.zip
+
+      - name: Deploy status-api function
+        run: |
+          aws lambda update-function-code \
+            --function-name portfolio-platform-dev-status-api \
+            --zip-file fileb://functions/api.zip

@@ -64,6 +64,32 @@ terraform/
 
 ---
 
+## Status Monitor
+
+A second, independent pipeline in the same repo: it watches sites (starting
+with atabany.net) on a schedule, keeps a history of every check, and alerts
+only when status actually changes.
+
+| Component | Role |
+| --- | --- |
+| **EventBridge** | Schedule rule — invokes the checker Lambda every 5 minutes. |
+| **Lambda: checker** | Requests each target, times the response, writes the result to DynamoDB, and publishes to SNS only when a target's status flips (not on every failed check). |
+| **DynamoDB (`UptimeChecks`)** | One table, two row shapes per target: a history row per check (`sk` = ISO-8601 timestamp) and one `LATEST` pointer row that's overwritten each run, so "current status" is a single `GetItem` instead of a scan. Provisioned at 1 RCU/1 WCU — deliberately not on-demand billing, since the AWS always-free allowance (25 RCU/25 WCU) only covers provisioned capacity. |
+| **SNS** | `status-alerts` topic, email subscription. Requires confirming the email AWS sends after `terraform apply` — subscriptions stay `PendingConfirmation` until then. |
+| **API Gateway v2 + Lambda: api** | Public read-only `GET /status` and `GET /history/{target}` — a separate HTTP API from the ingest pipeline's, on purpose: different concern, different audience. |
+| **IAM** | Two separate execution roles — checker (DynamoDB write + SNS publish) and api (DynamoDB read only) — not one shared role, so a bug in either function can't act outside its own job. |
+| **S3 static site (`modules/site`)** | Public bucket, static website hosting enabled. `terraform apply` bakes the real API endpoint into `site/index.html` and uploads it directly — no manual edit-and-redeploy step. URL is the `status_page_url` output. |
+| **AWS Budgets** | Account-wide zero-spend budget (`$0.01` actual / `$1` forecasted threshold) — applied independently of everything else above, so it catches a mistake anywhere in the account, not just in this project. |
+
+**Deployment note:** unlike the ingest Lambda, the status monitor's
+resources don't exist until `terraform apply` creates them — the GitHub
+Actions workflow only pushes *code* to Lambda functions that already
+exist. Run `terraform init && terraform plan` and review the plan before
+`terraform apply`; only after that succeeds does `.github/workflows/deploy.yml`
+need extending to also push code updates for `status-checker`/`status-api`.
+
+---
+
 ## Compliance Tagging
 
 Every resource receives the following tags automatically via Terraform `default_tags`:
@@ -140,4 +166,7 @@ Error responses:
 
 ## Cost
 
-Approximately $0/month. All resources operate within AWS free tier limits under typical portfolio traffic.
+Approximately $0/month. All resources — ingest pipeline and status monitor
+alike — operate within AWS free tier limits under typical portfolio
+traffic, and the account-wide zero-spend budget alarm (see Status Monitor
+above) is the backstop if that ever stops being true.
