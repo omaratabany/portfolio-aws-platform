@@ -235,3 +235,29 @@ specifically, not before.
 **Principle.** Defer complexity until the requirement that justifies it
 actually shows up — "we might want HTTPS/a custom domain later" isn't
 that requirement yet on its own.
+
+---
+
+## Note: bootstrapping with root, running as least-privilege
+
+`terraform apply` for this project ran under the AWS account's **root**
+session (via AWS CloudShell, authenticated through the console login —
+never a static root access key, which was deliberately deleted from this
+account earlier for exactly this reason). `omar-devops-admin`, the
+account's day-to-day IAM user, only holds `PowerUserAccess`, which
+explicitly excludes IAM actions — and `iam_monitor` creates two new
+IAM roles. Applying as that user would have failed outright.
+
+This is a real, common tension in infrastructure-as-code: something has
+to have permission to create the roles that everything else will run as,
+and that something is necessarily more privileged than the roles it's
+creating. The pattern used here — elevated credentials for the one-time
+bootstrap, least-privilege roles for everything that actually runs
+afterward — is standard practice, not a shortcut. `checker` and `api`
+both execute under their own narrowly-scoped roles (ADR-6); root was
+never given anything to do beyond standing those roles up once.
+
+**Principle.** Least privilege applies to what runs continuously, not to
+every action that ever touches an account. Bootstrapping is a distinct,
+narrower problem — solve it once, deliberately, and hand off to
+least-privilege roles for everything ongoing.
