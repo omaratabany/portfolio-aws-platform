@@ -65,6 +65,16 @@ module "budget" {
   alert_email = var.alert_email
 }
 
+# --- Phase 5: account-wide security baseline. Independent of every
+# other module above — applies regardless of what this project builds.
+
+module "iam_security_baseline" {
+  source = "./modules/iam_security_baseline"
+
+  project     = var.project
+  environment = var.environment
+}
+
 module "dynamodb" {
   source = "./modules/dynamodb"
 
