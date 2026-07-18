@@ -58,10 +58,23 @@ resource "aws_iam_role_policy_attachment" "checker_basic_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# X-Ray active tracing (CKV_AWS_50) — within the always-free tier at this
+# invocation volume (100k traces/month free; this runs ~9,000/month).
+resource "aws_iam_role_policy_attachment" "checker_xray" {
+  role       = aws_iam_role.checker_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+
 resource "aws_iam_role_policy" "checker_ssm_read" {
   name = "${var.project}-${var.environment}-status-checker-ssm"
   role = aws_iam_role.checker_exec.id
 
+  # The SSM parameter is SecureString (CKV2_AWS_34), so reading it needs
+  # both ssm:GetParameter AND kms:Decrypt against the key that encrypted
+  # it. This uses the AWS-managed key (alias/aws/ssm, $0 — no customer-
+  # managed KMS key to pay $1/month for), scoped via kms:ViaService
+  # rather than a hardcoded key ARN — the standard pattern for granting
+  # decrypt access to an AWS-managed key without looking up its ID.
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -69,6 +82,16 @@ resource "aws_iam_role_policy" "checker_ssm_read" {
         Effect   = "Allow"
         Action   = "ssm:GetParameter"
         Resource = var.ssm_parameter_arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = "kms:Decrypt"
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
+          }
+        }
       }
     ]
   })
@@ -113,6 +136,11 @@ resource "aws_iam_role_policy_attachment" "api_basic_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+resource "aws_iam_role_policy_attachment" "api_xray" {
+  role       = aws_iam_role.api_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+
 resource "aws_iam_role_policy" "api_ssm_read" {
   name = "${var.project}-${var.environment}-status-api-ssm"
   role = aws_iam_role.api_exec.id
@@ -124,6 +152,16 @@ resource "aws_iam_role_policy" "api_ssm_read" {
         Effect   = "Allow"
         Action   = "ssm:GetParameter"
         Resource = var.ssm_parameter_arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = "kms:Decrypt"
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
+          }
+        }
       }
     ]
   })

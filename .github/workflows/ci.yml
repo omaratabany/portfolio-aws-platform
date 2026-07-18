@@ -63,7 +63,7 @@ jobs:
           persist-credentials: false
 
       # soft_fail: true deliberately, for now — see reports/03-cicd-hardening.md
-      # (ADR-14). This is the first time this scanner has ever run against
+      # (ADR-13). This is the first time this scanner has ever run against
       # already-deployed infrastructure; day-one hard-enforcement would
       # block every future PR on findings nobody has triaged yet.
       - name: Run Checkov

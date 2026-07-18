@@ -31,7 +31,7 @@ _targets_cache = None
 def get_targets():
     global _targets_cache
     if _targets_cache is None:
-        response = ssm.get_parameter(Name=SSM_PARAM_NAME)
+        response = ssm.get_parameter(Name=SSM_PARAM_NAME, WithDecryption=True)
         _targets_cache = json.loads(response["Parameter"]["Value"])
     return _targets_cache
 
