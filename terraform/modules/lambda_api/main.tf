@@ -35,3 +35,44 @@ resource "aws_cloudwatch_log_group" "status_api" {
   name              = "/aws/lambda/${var.project}-${var.environment}-status-api"
   retention_in_days = 14
 }
+
+# See the matching comment block in modules/lambda_checker/main.tf for why
+# alarms live here rather than in the shared `observability` module, and
+# why this reuses var.sns_topic_arn rather than a second topic.
+
+resource "aws_cloudwatch_metric_alarm" "api_errors" {
+  alarm_name          = "${var.project}-${var.environment}-status-api-errors"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  alarm_description   = "The status-api Lambda itself failed to run (crash, timeout, throttle) — different from the site being down."
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.status_api.function_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "api_duration" {
+  alarm_name          = "${var.project}-${var.environment}-status-api-duration"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Duration"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 8000 # ms — well under the 10s function timeout
+  alarm_description   = "The status-api Lambda is running unusually long."
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.status_api.function_name
+  }
+}

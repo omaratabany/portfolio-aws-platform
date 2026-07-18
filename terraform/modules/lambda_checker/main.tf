@@ -46,3 +46,48 @@ resource "aws_cloudwatch_log_group" "checker" {
   name              = "/aws/lambda/${var.project}-${var.environment}-status-checker"
   retention_in_days = 14
 }
+
+# Alarms live here, not in the shared `observability` module (which
+# ingest uses) — that module also creates its own log group, and this
+# one already has one above. Splitting "alarms" from "log group +
+# alarms" for one Lambda but not another would be more confusing than
+# just letting each Lambda module own its own full observability story.
+# Reuses the same SNS topic as status-change alerts (var.sns_topic_arn)
+# rather than a second topic — one recipient, one $0 topic, not two.
+
+resource "aws_cloudwatch_metric_alarm" "checker_errors" {
+  alarm_name          = "${var.project}-${var.environment}-status-checker-errors"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  alarm_description   = "The status-checker Lambda itself failed to run (crash, timeout, throttle) — different from a monitored site being down."
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.checker.function_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "checker_duration" {
+  alarm_name          = "${var.project}-${var.environment}-status-checker-duration"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Duration"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 10000 # ms — well under the 15s function timeout
+  alarm_description   = "The status-checker Lambda is running unusually long — likely a slow/hanging target, not the checker itself."
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.checker.function_name
+  }
+}
