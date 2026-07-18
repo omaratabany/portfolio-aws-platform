@@ -75,6 +75,17 @@ module "iam_security_baseline" {
   environment = var.environment
 }
 
+# --- Phase 4's deferred stretch goal: a read-only credential for the
+# homelab's Grafana instances to query CloudWatch. See
+# reports/04-observability.md for how the access key itself is generated.
+
+module "iam_grafana_reader" {
+  source = "./modules/iam_grafana_reader"
+
+  project     = var.project
+  environment = var.environment
+}
+
 module "dynamodb" {
   source = "./modules/dynamodb"
 

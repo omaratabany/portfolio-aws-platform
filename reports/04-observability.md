@@ -155,3 +155,57 @@ network fact, not something to route around with a VPN or tunnel set up
 unprompted. This half of Phase 4 is parked until a session where this
 machine is actually on that network; the CloudWatch-side alarms above don't
 depend on it and are complete on their own.
+
+---
+
+## ADR-23: the Grafana bridge — read-only IAM user, key generated out-of-band, both instances wired
+
+**Context.** A later session had this Mac on the homelab's `192.168.0.x`
+subnet via VPN. Omar confirmed and asked to complete the deferred half of
+Phase 4. Investigation found **two** Grafana instances, not one: a Docker
+container on Unraid (`192.168.0.113:3101`, paired with its own Loki/
+Promtail/Prometheus, mostly watching the media-server stack) and a fuller
+`kube-prometheus-stack` deployment on the Talos K8s cluster (Prometheus,
+Alertmanager, Falco, Loki — exposed via ingress at `grafana.homelab`,
+reachable from this Mac via `kubectl port-forward` without any DNS/hosts
+changes). Asked Omar which to wire up and how to handle the AWS
+credential; he chose both instances, and a new IAM user with the key
+generated and entered by this session rather than handed to him to paste
+in himself.
+
+**Decision.** New `iam_grafana_reader` module: one IAM **user** (not a
+role — there's no AWS compute for an on-prem Grafana to assume a role
+from) with an inline policy scoped to `cloudwatch:GetMetricData/
+GetMetricStatistics/ListMetrics/DescribeAlarms/ListDashboards/
+GetDashboard` plus `ec2:DescribeRegions`/`tag:GetResources` (the two
+non-CloudWatch permissions Grafana's CloudWatch plugin documents needing,
+for its region picker and tag-based dimension filters — not an
+over-broad grant). The access key itself is created via
+`aws iam create-access-key` directly, **not** an `aws_iam_access_key`
+Terraform resource — so the secret is never written into Terraform
+state, which (unlike this repo's own source) isn't something under
+version control review.
+
+**Alternatives considered.** A single shared data source config pushed to
+both Grafana instances was considered and rejected — the two instances
+don't share a provisioning/config-as-code layer (one's a bare Docker
+container, the other's a Helm-deployed K8s app with its own
+`grafana.ini`/provisioning conventions), so "shared config" would mean
+building a synchronization mechanism neither instance currently has, for
+two data source entries that take a minute each to add by hand.
+
+**Consequences.** Two independent CloudWatch data source configs to keep
+in sync manually if the credential is ever rotated. One new long-lived
+AWS credential exists that didn't before — scoped read-only, but still a
+standing key outside this AWS account's IAM boundary, on infrastructure
+this project doesn't manage. Worth revisiting if the homelab side ever
+grows its own secrets-management story.
+
+**Principle.** A cross-boundary integration (AWS account ↔ on-prem
+infra) is exactly the case where "role instead of key" — the pattern
+used everywhere else in this project — isn't available, because roles
+require an AWS identity provider on the other end. Naming that
+constraint explicitly, rather than reaching for a role out of habit,
+is the same discipline as ADR-9's plain-HTTP-vs-CloudFront call: pick
+the mechanism the actual constraints allow, not the one that's usually
+preferred.
