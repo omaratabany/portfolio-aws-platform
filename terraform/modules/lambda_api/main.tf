@@ -13,7 +13,7 @@ resource "aws_lambda_function" "status_api" {
   filename         = data.archive_file.status_api.output_path
   source_code_hash = data.archive_file.status_api.output_base64sha256
 
-  reserved_concurrent_executions = 5
+  # See the reserved_concurrent_executions note in modules/lambda/main.tf.
 
   tracing_config {
     mode = "Active"

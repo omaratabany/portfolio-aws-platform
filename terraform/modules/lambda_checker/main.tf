@@ -13,7 +13,8 @@ resource "aws_lambda_function" "checker" {
   filename         = data.archive_file.checker.output_path
   source_code_hash = data.archive_file.checker.output_base64sha256
 
-  reserved_concurrent_executions = 5
+  # See the reserved_concurrent_executions note in modules/lambda/main.tf
+  # — reverted account-wide, not just here.
 
   tracing_config {
     mode = "Active"
