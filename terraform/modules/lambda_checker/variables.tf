@@ -23,7 +23,7 @@ variable "sns_topic_arn" {
   type        = string
 }
 
-variable "targets_json" {
-  description = "JSON-encoded list of {name, url} objects to check"
+variable "ssm_parameter_name" {
+  description = "Name of the SSM parameter holding the JSON-encoded target list"
   type        = string
 }

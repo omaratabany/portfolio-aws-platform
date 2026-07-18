@@ -5,12 +5,31 @@ from unittest.mock import MagicMock
 import api
 
 
+def _mock_ssm_targets(targets):
+    api.ssm.get_parameter = MagicMock(
+        return_value={"Parameter": {"Value": json.dumps(targets)}}
+    )
+
+
+def test_get_targets_fetches_from_ssm_once_and_caches():
+    _mock_ssm_targets([{"name": "example", "url": "https://example.com"}])
+
+    first = api.get_targets()
+    second = api.get_targets()
+
+    assert first == [{"name": "example", "url": "https://example.com"}]
+    assert second is first
+    api.ssm.get_parameter.assert_called_once_with(Name=api.SSM_PARAM_NAME)
+
+
 def test_get_status_skips_targets_with_no_data():
+    _mock_ssm_targets([{"name": "example", "url": "https://example.com"}])
     api.TABLE.get_item = MagicMock(return_value={})
     assert api.get_status() == []
 
 
 def test_get_status_returns_latest_row_per_target():
+    _mock_ssm_targets([{"name": "example", "url": "https://example.com"}])
     api.TABLE.get_item = MagicMock(
         return_value={"Item": {"target": "example", "sk": "LATEST", "is_up": True}}
     )
@@ -29,6 +48,7 @@ def test_get_history_queries_below_latest_sort_key():
 
 
 def test_handler_status_route():
+    _mock_ssm_targets([{"name": "example", "url": "https://example.com"}])
     api.TABLE.get_item = MagicMock(
         return_value={"Item": {"target": "example", "sk": "LATEST", "is_up": True}}
     )

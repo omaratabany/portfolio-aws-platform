@@ -68,24 +68,10 @@ resource "aws_iam_role" "github_actions" {
   })
 }
 
-resource "aws_iam_role_policy" "github_actions_deploy" {
-  name = "${var.project}-${var.environment}-github-actions-deploy"
-  role = aws_iam_role.github_actions.id
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "lambda:UpdateFunctionCode",
-          "lambda:GetFunction",
-          "s3:PutObject",
-          "s3:GetObject",
-          "s3:ListBucket"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
+# The scoped replacement for this role's deploy policy lives in root
+# main.tf (module.iam_ci_policy), not here — it needs the Lambda function
+# ARNs from modules that are declared after this one, and attaching it
+# here would create a circular module dependency. See that resource for
+# the actual policy and why the S3 permissions this used to carry (never
+# referenced anywhere in deploy.yml) were dropped entirely.

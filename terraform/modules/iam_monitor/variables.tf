@@ -17,3 +17,8 @@ variable "sns_topic_arn" {
   description = "ARN of the SNS topic used for status-change alerts"
   type        = string
 }
+
+variable "ssm_parameter_arn" {
+  description = "ARN of the SSM parameter holding the monitor target list"
+  type        = string
+}

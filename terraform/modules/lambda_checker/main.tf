@@ -15,9 +15,9 @@ resource "aws_lambda_function" "checker" {
 
   environment {
     variables = {
-      TABLE_NAME    = var.table_name
-      SNS_TOPIC_ARN = var.sns_topic_arn
-      TARGETS       = var.targets_json
+      TABLE_NAME     = var.table_name
+      SNS_TOPIC_ARN  = var.sns_topic_arn
+      SSM_PARAM_NAME = var.ssm_parameter_name
     }
   }
 }

@@ -80,34 +80,43 @@ module "sns_alerts" {
   alert_email = var.alert_email
 }
 
+module "ssm_config" {
+  source = "./modules/ssm_config"
+
+  project         = var.project
+  environment     = var.environment
+  monitor_targets = var.monitor_targets
+}
+
 module "iam_monitor" {
   source = "./modules/iam_monitor"
 
-  project       = var.project
-  environment   = var.environment
-  table_arn     = module.dynamodb.table_arn
-  sns_topic_arn = module.sns_alerts.topic_arn
+  project           = var.project
+  environment       = var.environment
+  table_arn         = module.dynamodb.table_arn
+  sns_topic_arn     = module.sns_alerts.topic_arn
+  ssm_parameter_arn = module.ssm_config.parameter_arn
 }
 
 module "lambda_checker" {
   source = "./modules/lambda_checker"
 
-  project       = var.project
-  environment   = var.environment
-  exec_role_arn = module.iam_monitor.checker_exec_role_arn
-  table_name    = module.dynamodb.table_name
-  sns_topic_arn = module.sns_alerts.topic_arn
-  targets_json  = jsonencode(var.monitor_targets)
+  project            = var.project
+  environment        = var.environment
+  exec_role_arn      = module.iam_monitor.checker_exec_role_arn
+  table_name         = module.dynamodb.table_name
+  sns_topic_arn      = module.sns_alerts.topic_arn
+  ssm_parameter_name = module.ssm_config.parameter_name
 }
 
 module "lambda_api" {
   source = "./modules/lambda_api"
 
-  project       = var.project
-  environment   = var.environment
-  exec_role_arn = module.iam_monitor.api_exec_role_arn
-  table_name    = module.dynamodb.table_name
-  targets_json  = jsonencode(var.monitor_targets)
+  project            = var.project
+  environment        = var.environment
+  exec_role_arn      = module.iam_monitor.api_exec_role_arn
+  table_name         = module.dynamodb.table_name
+  ssm_parameter_name = module.ssm_config.parameter_name
 }
 
 module "eventbridge" {
@@ -135,4 +144,21 @@ module "site" {
   environment = var.environment
   account_id  = data.aws_caller_identity.current.account_id
   api_base    = module.apigateway_monitor.api_endpoint
+}
+
+# --- Phase 2: scope the CI role down from the Resource="*" grant it
+# started with to exactly the three function ARNs it deploys code to.
+# Declared last on purpose — it depends on every Lambda module above.
+
+module "iam_ci_policy" {
+  source = "./modules/iam_ci_policy"
+
+  project                  = var.project
+  environment              = var.environment
+  github_actions_role_name = module.iam.github_actions_role_name
+  lambda_function_arns = [
+    module.lambda.function_arn,
+    module.lambda_checker.function_arn,
+    module.lambda_api.function_arn,
+  ]
 }

@@ -15,8 +15,8 @@ resource "aws_lambda_function" "status_api" {
 
   environment {
     variables = {
-      TABLE_NAME = var.table_name
-      TARGETS    = var.targets_json
+      TABLE_NAME     = var.table_name
+      SSM_PARAM_NAME = var.ssm_parameter_name
     }
   }
 }
