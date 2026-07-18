@@ -19,7 +19,7 @@ def test_get_targets_fetches_from_ssm_once_and_caches():
 
     assert first == [{"name": "example", "url": "https://example.com"}]
     assert second is first
-    api.ssm.get_parameter.assert_called_once_with(Name=api.SSM_PARAM_NAME)
+    api.ssm.get_parameter.assert_called_once_with(Name=api.SSM_PARAM_NAME, WithDecryption=True)
 
 
 def test_get_status_skips_targets_with_no_data():

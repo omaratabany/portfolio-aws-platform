@@ -22,3 +22,8 @@ variable "ssm_parameter_arn" {
   description = "ARN of the SSM parameter holding the monitor target list"
   type        = string
 }
+
+variable "aws_region" {
+  description = "AWS region, used to scope the kms:ViaService condition for SSM decrypt"
+  type        = string
+}

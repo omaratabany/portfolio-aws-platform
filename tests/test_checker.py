@@ -18,7 +18,7 @@ def test_get_targets_fetches_from_ssm_once_and_caches():
 
     assert first == [{"name": "example", "url": "https://example.com"}]
     assert second is first
-    checker.ssm.get_parameter.assert_called_once_with(Name=checker.SSM_PARAM_NAME)
+    checker.ssm.get_parameter.assert_called_once_with(Name=checker.SSM_PARAM_NAME, WithDecryption=True)
 
 
 def test_check_target_success():

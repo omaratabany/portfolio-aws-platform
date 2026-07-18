@@ -13,10 +13,25 @@ resource "aws_lambda_function" "status_api" {
   filename         = data.archive_file.status_api.output_path
   source_code_hash = data.archive_file.status_api.output_base64sha256
 
+  # See the reserved_concurrent_executions note in modules/lambda/main.tf.
+
+  tracing_config {
+    mode = "Active"
+  }
+
   environment {
     variables = {
       TABLE_NAME     = var.table_name
       SSM_PARAM_NAME = var.ssm_parameter_name
     }
   }
+
+  depends_on = [aws_cloudwatch_log_group.status_api]
+}
+
+resource "aws_cloudwatch_log_group" "status_api" {
+  # See the matching comment in modules/lambda_checker/main.tf — literal
+  # string, not a reference, because of the depends_on ordering above.
+  name              = "/aws/lambda/${var.project}-${var.environment}-status-api"
+  retention_in_days = 14
 }

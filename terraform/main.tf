@@ -96,6 +96,7 @@ module "iam_monitor" {
   table_arn         = module.dynamodb.table_arn
   sns_topic_arn     = module.sns_alerts.topic_arn
   ssm_parameter_arn = module.ssm_config.parameter_arn
+  aws_region        = var.aws_region
 }
 
 module "lambda_checker" {
