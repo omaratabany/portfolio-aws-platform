@@ -22,3 +22,8 @@ variable "ssm_parameter_name" {
   description = "Name of the SSM parameter holding the JSON-encoded target list"
   type        = string
 }
+
+variable "sns_topic_arn" {
+  description = "ARN of the shared status-alerts SNS topic, used for this Lambda's own error/duration alarms"
+  type        = string
+}

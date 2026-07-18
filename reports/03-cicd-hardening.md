@@ -118,13 +118,13 @@ uniformly:
 | --- | --- | --- |
 | `CKV2_AWS_34` | SSM parameter should be encrypted | Switched to `SecureString` — AWS-managed key, no CMK cost. Required adding `kms:Decrypt` (scoped via `kms:ViaService`, not a hardcoded key ARN) and `WithDecryption=True` in both Lambdas' `get_parameter` calls. |
 | `CKV_AWS_50` | X-Ray tracing enabled for Lambda | Within the always-free tier (100k traces/month; this runs ~9,000/month across all three functions). Real observability value at $0. |
-| `CKV_AWS_115` | Lambda reserved concurrency limit | Free to set. Set to 5 per function — a hard ceiling against a retry storm or misconfiguration running away with cost, which is a cost-control measure as much as a reliability one. |
 | *(not flagged by Checkov, found by inspection)* | `checker` and `api` had **no** explicit CloudWatch log group | Lambda auto-creates one on first invocation with **no expiration** — unbounded log storage cost accruing forever. Added explicit groups, 14-day retention, matching `ingest`'s existing pattern. |
 
 ### Deferred — would cost real money
 
 | Check | What | Why deferred |
 | --- | --- | --- |
+| `CKV_AWS_115` | Lambda reserved concurrency limit | Free in principle, but this account's total Lambda concurrency limit in `eu-central-1` is only 10 (not AWS's usual default of 1000) and is currently fully unreserved — AWS requires >=10 unreserved at all times, so reserving any amount for any function fails outright without a service quota increase first. Attempted at 5 per function, reverted after `terraform apply` failed with `InvalidParameterValueException`. Revisit if/when a quota increase is requested. |
 | `CKV_AWS_119`, `CKV_AWS_145`, `CKV_AWS_158`, `CKV_AWS_337` | KMS CMK encryption (DynamoDB, S3, CloudWatch Logs, SSM) | Each needs a **customer-managed** KMS key — $1/month per key, four keys, directly against the $0 ceiling. Default encryption (AWS-owned keys) already applies at no cost; a CMK buys key-rotation control this project doesn't need yet. |
 | `CKV_AWS_28` | DynamoDB point-in-time recovery | Real, ongoing storage cost proportional to table size/change rate — not free-tier covered. |
 | `CKV_AWS_117` | Lambda inside a VPC | Would need a NAT Gateway for internet egress (the checker calls external URLs) — NAT Gateway is explicitly the most common AWS bill-shock item, already named as a non-goal in `INFRA_PROJECT_PLAN.md`. |

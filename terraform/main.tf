@@ -118,6 +118,7 @@ module "lambda_api" {
   exec_role_arn      = module.iam_monitor.api_exec_role_arn
   table_name         = module.dynamodb.table_name
   ssm_parameter_name = module.ssm_config.parameter_name
+  sns_topic_arn      = module.sns_alerts.topic_arn
 }
 
 module "eventbridge" {
@@ -136,6 +137,7 @@ module "apigateway_monitor" {
   environment          = var.environment
   lambda_function_name = module.lambda_api.function_name
   lambda_invoke_arn    = module.lambda_api.invoke_arn
+  sns_topic_arn        = module.sns_alerts.topic_arn
 }
 
 module "site" {
