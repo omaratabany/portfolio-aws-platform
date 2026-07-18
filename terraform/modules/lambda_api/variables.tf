@@ -18,7 +18,7 @@ variable "table_name" {
   type        = string
 }
 
-variable "targets_json" {
-  description = "JSON-encoded list of {name, url} objects, used to enumerate /status"
+variable "ssm_parameter_name" {
+  description = "Name of the SSM parameter holding the JSON-encoded target list"
   type        = string
 }

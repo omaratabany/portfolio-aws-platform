@@ -1,6 +1,24 @@
+import json
 from unittest.mock import MagicMock, patch
 
 import checker
+
+
+def _mock_ssm_targets(targets):
+    checker.ssm.get_parameter = MagicMock(
+        return_value={"Parameter": {"Value": json.dumps(targets)}}
+    )
+
+
+def test_get_targets_fetches_from_ssm_once_and_caches():
+    _mock_ssm_targets([{"name": "example", "url": "https://example.com"}])
+
+    first = checker.get_targets()
+    second = checker.get_targets()
+
+    assert first == [{"name": "example", "url": "https://example.com"}]
+    assert second is first
+    checker.ssm.get_parameter.assert_called_once_with(Name=checker.SSM_PARAM_NAME)
 
 
 def test_check_target_success():
@@ -65,3 +83,23 @@ def test_alert_fires_on_status_flip():
 
     checker.sns.publish.assert_called_once()
     assert "DOWN" in checker.sns.publish.call_args.kwargs["Subject"]
+
+
+def test_handler_checks_every_target_from_ssm():
+    _mock_ssm_targets([{"name": "example", "url": "https://example.com"}])
+    checker.TABLE.get_item = MagicMock(return_value={})
+    checker.TABLE.put_item = MagicMock()
+    checker.sns.publish = MagicMock()
+
+    fake_resp = MagicMock()
+    fake_resp.status = 200
+    fake_resp.__enter__ = lambda self: fake_resp
+    fake_resp.__exit__ = lambda self, *a: False
+
+    with patch("checker.urllib.request.urlopen", return_value=fake_resp):
+        resp = checker.handler({}, None)
+
+    assert resp["statusCode"] == 200
+    body = json.loads(resp["body"])
+    assert body == [{"target": "example", "is_up": True, "status_code": 200}]
+    checker.sns.publish.assert_not_called()  # no previous status, no flip

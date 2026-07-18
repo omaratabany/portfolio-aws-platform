@@ -77,9 +77,17 @@ only when status actually changes.
 | **DynamoDB (`UptimeChecks`)** | One table, two row shapes per target: a history row per check (`sk` = ISO-8601 timestamp) and one `LATEST` pointer row that's overwritten each run, so "current status" is a single `GetItem` instead of a scan. Provisioned at 1 RCU/1 WCU — deliberately not on-demand billing, since the AWS always-free allowance (25 RCU/25 WCU) only covers provisioned capacity. |
 | **SNS** | `status-alerts` topic, email subscription. Requires confirming the email AWS sends after `terraform apply` — subscriptions stay `PendingConfirmation` until then. |
 | **API Gateway v2 + Lambda: api** | Public read-only `GET /status` and `GET /history/{target}` — a separate HTTP API from the ingest pipeline's, on purpose: different concern, different audience. |
-| **IAM** | Two separate execution roles — checker (DynamoDB write + SNS publish) and api (DynamoDB read only) — not one shared role, so a bug in either function can't act outside its own job. |
+| **IAM** | Two separate execution roles — checker (DynamoDB write + SNS publish + SSM read) and api (DynamoDB read + SSM read only) — not one shared role, so a bug in either function can't act outside its own job. |
+| **SSM Parameter Store (`modules/ssm_config`)** | Holds the JSON-encoded target list. Both Lambdas fetch it lazily on first invocation and cache it for the container's lifetime — editing the target list no longer requires redeploying either function. |
 | **S3 static site (`modules/site`)** | Public bucket, static website hosting enabled. `terraform apply` bakes the real API endpoint into `site/index.html` and uploads it directly — no manual edit-and-redeploy step. URL is the `status_page_url` output. |
 | **AWS Budgets** | Account-wide zero-spend budget (`$0.01` actual / `$1` forecasted threshold) — applied independently of everything else above, so it catches a mistake anywhere in the account, not just in this project. |
+
+**CI role, scoped (`modules/iam_ci_policy`):** the GitHub Actions role's
+deploy policy originally granted `lambda:UpdateFunctionCode`/`GetFunction`
+on `Resource: "*"` plus unused S3 permissions, left over from before this
+project existed. It's now scoped to exactly the three function ARNs CI
+deploys code to, with the S3 grant dropped entirely — see
+`reports/02-least-privilege.md` (ADR-10) for how that was found.
 
 **Deployment note:** unlike the ingest Lambda, the status monitor's
 resources don't exist until `terraform apply` creates them — the GitHub

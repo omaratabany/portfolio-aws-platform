@@ -5,11 +5,22 @@ from decimal import Decimal
 from boto3.dynamodb.conditions import Key
 
 dynamodb = boto3.resource("dynamodb")
+ssm = boto3.client("ssm")
 TABLE = dynamodb.Table(os.environ["TABLE_NAME"])
-TARGETS = json.loads(os.environ["TARGETS"])
+SSM_PARAM_NAME = os.environ["SSM_PARAM_NAME"]
 
 LATEST_SK = "LATEST"
 HEADERS = {"Content-Type": "application/json"}
+
+_targets_cache = None
+
+
+def get_targets():
+    global _targets_cache
+    if _targets_cache is None:
+        response = ssm.get_parameter(Name=SSM_PARAM_NAME)
+        _targets_cache = json.loads(response["Parameter"]["Value"])
+    return _targets_cache
 
 
 def _json_default(o):
@@ -20,7 +31,7 @@ def _json_default(o):
 
 def get_status():
     items = []
-    for target in TARGETS:
+    for target in get_targets():
         resp = TABLE.get_item(Key={"target": target["name"], "sk": LATEST_SK})
         item = resp.get("Item")
         if item:
