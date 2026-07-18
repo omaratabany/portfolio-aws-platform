@@ -137,6 +137,7 @@ module "apigateway_monitor" {
   environment          = var.environment
   lambda_function_name = module.lambda_api.function_name
   lambda_invoke_arn    = module.lambda_api.invoke_arn
+  sns_topic_arn        = module.sns_alerts.topic_arn
 }
 
 module "site" {

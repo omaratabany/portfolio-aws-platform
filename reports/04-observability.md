@@ -99,6 +99,50 @@ few an hour.
 
 ---
 
+## ADR-18: Three gaps found by automated review, all fixed in this PR
+
+**Context.** An automated reviewer (Codex, same as `reports/03-cicd-hardening.md`
+ADR-14) left three comments on the alarms added above, before merge.
+
+**Findings and fixes:**
+
+1. **`api_errors` can't see application-level 500s.** `functions/api.py`
+   catches every exception and returns a well-formed
+   `{"statusCode": 500, ...}` proxy response — that's a *successful*
+   Lambda invocation from AWS's point of view, so `AWS/Lambda Errors`
+   never increments even when DynamoDB or SSM is actually failing
+   underneath. Fixed by adding `api_5xx` in `modules/apigateway_monitor`,
+   watching `AWS/ApiGateway`'s `5xx` metric instead — that metric counts
+   the response actually sent to the caller, regardless of whether it
+   came from a Lambda crash or a caught exception. HTTP APIs emit this
+   automatically, no access logging setup required.
+2. **No `Throttles` alarm.** A throttled invocation never runs user code,
+   so it doesn't count as a Lambda "Error" — it's a separate metric.
+   Given this account's Lambda concurrency limit in `eu-central-1` is
+   only 10 and fully unreserved (`reports/03-cicd-hardening.md`), a burst
+   of concurrent invocations is a real, already-documented failure mode,
+   not a hypothetical one. Fixed by adding `checker_throttles` and
+   `api_throttles` alongside each function's Errors alarm.
+3. **Duration alarms used `Average`, not `Maximum`.** A 5-minute average
+   lets one genuinely slow invocation get diluted by several fast ones
+   and never cross the threshold — e.g. one 9-second `/status` call
+   plus a handful of fast ones keeps the average under 8s. Fixed by
+   switching both Duration alarms to `Maximum`.
+
+**Consequences.** Five alarms per Lambda-facing surface now, not two:
+Errors, Throttles, Duration (checker/api) plus the shared API Gateway 5xx
+alarm — still $0 (well inside the 10-free-alarms allowance: 3 ingest +
+4 checker/api + 1 API-level = 8 total).
+
+**Principle.** Same as ADR-14: a second pair of eyes — automated or
+human — catching a real gap before merge is the review process working,
+not something to wave off because "CI is green." All three here were
+fixed in this same PR rather than filed away as future work, since each
+was low-effort and the resulting alarms would otherwise have silently
+under-covered exactly the failure modes this project already knows about.
+
+---
+
 ## Note: the Grafana/homelab bridge is deferred, not designed around
 
 The stretch goal — pointing the homelab's self-hosted Grafana at CloudWatch

@@ -17,3 +17,8 @@ variable "lambda_invoke_arn" {
   description = "Invoke ARN of the status-api Lambda function"
   type        = string
 }
+
+variable "sns_topic_arn" {
+  description = "ARN of the shared status-alerts SNS topic, used for this API's 5xx alarm"
+  type        = string
+}

@@ -81,9 +81,37 @@ resource "aws_cloudwatch_metric_alarm" "checker_duration" {
   metric_name         = "Duration"
   namespace           = "AWS/Lambda"
   period              = 300
-  statistic           = "Average"
-  threshold           = 10000 # ms — well under the 15s function timeout
-  alarm_description   = "The status-checker Lambda is running unusually long — likely a slow/hanging target, not the checker itself."
+  # Maximum, not Average — an average over the 5-minute period would let
+  # one genuinely slow/hanging invocation get diluted by several fast
+  # ones and never cross the threshold. Maximum catches the single worst
+  # invocation in the period, which is what this alarm is actually for.
+  statistic          = "Maximum"
+  threshold          = 10000 # ms — well under the 15s function timeout
+  alarm_description  = "The status-checker Lambda is running unusually long — likely a slow/hanging target, not the checker itself."
+  treat_missing_data = "notBreaching"
+  alarm_actions      = [var.sns_topic_arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.checker.function_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "checker_throttles" {
+  # Errors alone won't catch this: a throttled invocation never runs user
+  # code, so it doesn't count as a Lambda "Error" — it's a distinct metric.
+  # Worth a dedicated alarm specifically because this account's Lambda
+  # concurrency limit in eu-central-1 is only 10 and fully unreserved (see
+  # reports/03-cicd-hardening.md) — throttling is a real, documented risk
+  # here, not a hypothetical edge case.
+  alarm_name          = "${var.project}-${var.environment}-status-checker-throttles"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Throttles"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  alarm_description   = "The status-checker Lambda was throttled — likely account-wide concurrency contention, not a code bug."
   treat_missing_data  = "notBreaching"
   alarm_actions       = [var.sns_topic_arn]
 
