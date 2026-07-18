@@ -108,6 +108,24 @@ human-run action via CloudShell, same as every deploy so far.
 
 ---
 
+## Security Baseline (`modules/iam_security_baseline`)
+
+Account-wide controls, independent of any one pipeline:
+
+| Component | Role |
+| --- | --- |
+| **IAM Access Analyzer** | `ACCOUNT`-type analyzer, free, continuously flags any resource policy (S3, IAM, SNS, ...) that grants access outside this account. Expected to flag `module.site`'s public bucket — that's correct, not a bug. |
+| **IAM account password policy** | 14-char minimum, all four character classes required, 5-password reuse prevention. Deliberately **no forced expiration** — NIST 800-63B recommends against mandatory rotation; see `reports/05-security-baseline.md` (ADR-19). |
+
+**Explicitly out of scope, named on purpose:** GuardDuty, Security Hub,
+and AWS Config all bill per-event/per-check/per-resource — a real,
+ongoing cost, not a rounding error, for an account with a hard $0
+ceiling. CloudTrail relies on the always-free 90-day default Event
+History rather than a new Trail + S3 bucket, for the same reason. See
+`reports/05-security-baseline.md` (ADR-21, ADR-22) for the full reasoning.
+
+---
+
 ## Compliance Tagging
 
 Every resource receives the following tags automatically via Terraform `default_tags`:
