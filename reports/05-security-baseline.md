@@ -136,19 +136,31 @@ changed") is different from a gap nobody noticed.
 
 ---
 
-## Findings review
+## Findings review (post-deploy, 2026-07-18)
 
 **IAM credential report** (`aws iam generate-credential-report` /
-`get-credential-report`): reviewed for `omar-devops-admin` — password
-last used, whether MFA is enabled, access key age. MFA status specifically
-needs a manual enable step (scanning a device with an authenticator app)
-that only Omar can do — not something this session can complete on his
-behalf. Recorded here as a follow-up action, not silently skipped: if
-`omar-devops-admin` doesn't already have MFA enabled, that's the single
-highest-value action left over from this phase.
+`get-credential-report`), reviewed for both identities in this account:
 
-**IAM Access Analyzer findings**, once created, are reviewed the same way
-Phase 3 triaged Checkov's first run — see this report's live findings
-once deployed, cross-referenced against `reports/03-cicd-hardening.md`'s
-"Accepted" table, since the public S3/API surface is the same one Checkov
-already correctly flagged as intentional.
+| Identity | MFA | Access key age | Note |
+| --- | --- | --- | --- |
+| `root` | **Active** | No key (deleted earlier this project, see `omar_job_search.md` memory) | Correct state — root shouldn't have a standing key at all. |
+| `omar-devops-admin` | **Not active** | **Exactly 90 days** (created 2026-04-19, checked 2026-07-18) | Two real gaps, not fixed automatically — see below. |
+
+Neither gap was fixed in this session: MFA enrollment needs Omar to scan
+a device with an authenticator app (can't be done on his behalf), and key
+rotation was deliberately deferred earlier in this project specifically
+until Omar raises it "around day 90" — which is *today*. Both are
+flagged here rather than actioned unilaterally; see the project status
+notes for the explicit follow-up.
+
+**IAM Access Analyzer findings** (2 total, both expected and accepted —
+same triage lens as Checkov's first run in `reports/03-cicd-hardening.md`):
+
+| Resource | Public? | Why it's correct, not a gap |
+| --- | --- | --- |
+| `portfolio-platform-dev-github-actions` IAM role | No | Flagged because it trusts an external principal (GitHub's OIDC provider) — that's the whole point of OIDC federation (no static AWS keys in GitHub); Access Analyzer surfacing external trust relationships is it working as intended, not finding a leak. |
+| `portfolio-platform-dev-status-site` S3 bucket | **Yes** | The public status page, by design — same bucket Checkov's `CKV_AWS_54`/`56`/`70` already correctly flagged and Phase 3 accepted. |
+
+Two findings, zero real gaps at the resource-policy level — the two real
+gaps this phase surfaced (MFA, key age) came from the credential report,
+not the Access Analyzer.
