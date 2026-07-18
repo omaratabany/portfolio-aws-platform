@@ -5,6 +5,16 @@ on:
     branches:
       - main
 
+# Neither job writes anything back to the repo or needs a credential that
+# outlives the checkout — this is the same least-privilege lens as
+# reports/02-least-privilege.md, applied to the GITHUB_TOKEN itself, not
+# just AWS IAM. contents: read is the ceiling; persist-credentials: false
+# on each checkout means no token is even left on disk for the rest of
+# the job to pick up — important specifically because "Run tests" and
+# "Run Checkov" both execute code/config from the PR branch itself.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test & Validate
@@ -13,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -47,6 +59,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       # soft_fail: true deliberately, for now — see reports/03-cicd-hardening.md
       # (ADR-14). This is the first time this scanner has ever run against
