@@ -56,24 +56,68 @@ resource "aws_lambda_permission" "apigw" {
 # well-formed {"statusCode": 500, ...} proxy response rather than letting
 # Lambda crash — that keeps the client-facing error shape consistent, but
 # it also means a DynamoDB/SSM failure is a *successful* Lambda invocation
-# from AWS's point of view, so it never trips the AWS/Lambda Errors alarm
-# in modules/lambda_api. This alarm watches the API Gateway layer instead,
-# where a caught-and-returned 500 still shows up as a 5xx response —
-# HTTP APIs emit this metric automatically, no access logging needed.
-resource "aws_cloudwatch_metric_alarm" "api_5xx" {
-  alarm_name          = "${var.project}-${var.environment}-status-api-5xx"
+# from AWS's point of view, so it never trips the AWS/Lambda Errors metric.
+# This alarm therefore combines three signals via metric math into one
+# CloudWatch alarm rather than three separate ones: the API Gateway layer
+# (catches the caught-and-returned 500s — HTTP APIs emit this metric
+# automatically, no access logging needed), plus the Lambda's own
+# Errors and Throttles metrics (catches a crash or account-wide
+# concurrency contention before the Lambda layer even runs). Merged
+# specifically to stay well clear of the "10 alarms always free" tier
+# after an 85%-of-free-tier usage alert — see reports/04-observability.md.
+resource "aws_cloudwatch_metric_alarm" "api_failures" {
+  alarm_name          = "${var.project}-${var.environment}-status-api-failures"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   evaluation_periods  = 1
-  metric_name         = "5xx"
-  namespace           = "AWS/ApiGateway"
-  period              = 300
-  statistic           = "Sum"
   threshold           = 1
-  alarm_description   = "GET /status or GET /history/{target} returned a 5xx — includes application-level errors the Lambda catches and returns as a formatted 500, which the Lambda Errors alarm can't see."
+  alarm_description   = "GET /status or GET /history/{target} failed — a 5xx response, a Lambda error, or a throttle. Check the API Gateway 5xx and Lambda Errors/Throttles metrics to tell which."
   treat_missing_data  = "notBreaching"
   alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
-  dimensions = {
-    ApiId = aws_apigatewayv2_api.monitor.id
+  metric_query {
+    id          = "failures"
+    expression  = "gw5xx + errors + throttles"
+    label       = "5xx + Errors + Throttles"
+    return_data = true
+  }
+
+  metric_query {
+    id = "gw5xx"
+    metric {
+      metric_name = "5xx"
+      namespace   = "AWS/ApiGateway"
+      period      = 300
+      stat        = "Sum"
+      dimensions = {
+        ApiId = aws_apigatewayv2_api.monitor.id
+      }
+    }
+  }
+
+  metric_query {
+    id = "errors"
+    metric {
+      metric_name = "Errors"
+      namespace   = "AWS/Lambda"
+      period      = 300
+      stat        = "Sum"
+      dimensions = {
+        FunctionName = var.lambda_function_name
+      }
+    }
+  }
+
+  metric_query {
+    id = "throttles"
+    metric {
+      metric_name = "Throttles"
+      namespace   = "AWS/Lambda"
+      period      = 300
+      stat        = "Sum"
+      dimensions = {
+        FunctionName = var.lambda_function_name
+      }
+    }
   }
 }

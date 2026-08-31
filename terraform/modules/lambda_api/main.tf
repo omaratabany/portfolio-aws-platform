@@ -39,25 +39,16 @@ resource "aws_cloudwatch_log_group" "status_api" {
 # See the matching comment block in modules/lambda_checker/main.tf for why
 # alarms live here rather than in the shared `observability` module, and
 # why this reuses var.sns_topic_arn rather than a second topic.
-
-resource "aws_cloudwatch_metric_alarm" "api_errors" {
-  alarm_name          = "${var.project}-${var.environment}-status-api-errors"
-  comparison_operator = "GreaterThanOrEqualToThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Errors"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 1
-  alarm_description   = "The status-api Lambda itself failed to run (crash, timeout, throttle) — different from the site being down."
-  treat_missing_data  = "notBreaching"
-  alarm_actions       = [var.sns_topic_arn]
-  ok_actions          = [var.sns_topic_arn]
-
-  dimensions = {
-    FunctionName = aws_lambda_function.status_api.function_name
-  }
-}
+#
+# Errors and Throttles for this function are alarmed on in
+# modules/apigateway_monitor (merged with the API Gateway 5xx alarm into
+# one combined "api_failures" alarm) rather than here — that module
+# already needed this Lambda's Errors/Throttles metrics to distinguish
+# real failures from the Lambda's own caught-and-returned 500s, so a
+# second, separate errors/throttles alarm here would just double-count
+# the same failure modes as a distinct CloudWatch alarm. See
+# reports/04-observability.md for the 85%-of-free-tier alarm-count issue
+# this was trimmed for.
 
 resource "aws_cloudwatch_metric_alarm" "api_duration" {
   alarm_name          = "${var.project}-${var.environment}-status-api-duration"
@@ -75,28 +66,6 @@ resource "aws_cloudwatch_metric_alarm" "api_duration" {
   alarm_description  = "The status-api Lambda is running unusually long."
   treat_missing_data = "notBreaching"
   alarm_actions      = [var.sns_topic_arn]
-
-  dimensions = {
-    FunctionName = aws_lambda_function.status_api.function_name
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "api_throttles" {
-  # See the matching comment in modules/lambda_checker/main.tf — Errors
-  # doesn't cover throttled invocations, and this account's Lambda
-  # concurrency limit (10, fully unreserved) makes throttling a real risk
-  # here, not a hypothetical one.
-  alarm_name          = "${var.project}-${var.environment}-status-api-throttles"
-  comparison_operator = "GreaterThanOrEqualToThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Throttles"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 1
-  alarm_description   = "The status-api Lambda was throttled — likely account-wide concurrency contention, not a code bug."
-  treat_missing_data  = "notBreaching"
-  alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
     FunctionName = aws_lambda_function.status_api.function_name
